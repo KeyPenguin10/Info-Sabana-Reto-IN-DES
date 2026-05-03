@@ -1,83 +1,29 @@
 import io
 import re
-import json
-import html
-import base64
 import unicodedata
-from pathlib import Path
 from datetime import datetime, time
 
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
+
 
 # ============================================================
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-st.markdown(
-    """
-    <style>
-        .infosabana-title {
-            text-align: center !important;
-            color: #002B7A !important;
-            -webkit-text-fill-color: #002B7A !important;
-            font-family: "Plaisir Light Italic", "Plaisir", Georgia, serif !important;
-            font-style: italic !important;
-            font-weight: 300 !important;
-            font-size: 46px !important;
-            line-height: 1.15 !important;
-            margin-top: 10px !important;
-            margin-bottom: 35px !important;
-        }
-
-        .infosabana-subtitle {
-            color: #002B7A !important;
-            -webkit-text-fill-color: #002B7A !important;
-            font-family: "Plaisir Light Italic", "Plaisir", Georgia, serif !important;
-            font-style: italic !important;
-            font-weight: 500 !important;
-        }
-
-        div.stButton > button[kind="primary"] {
-            background-color: #002B7A !important;
-            border-color: #002B7A !important;
-            color: white !important;
-            font-weight: 600 !important;
-        }
-
-        div.stButton > button[kind="primary"]:hover {
-            background-color: #001C64 !important;
-            border-color: #001C64 !important;
-            color: white !important;
-        }
-
-
-    </style>
-
-    <!-- Título viejo eliminado -->
-    """,
-    unsafe_allow_html=True
+st.set_page_config(
+    page_title="CertiDoc Ingeniería",
+    page_icon="🎓",
+    layout="wide"
 )
 
 SEMANAS_CICLO = 16
 
-COLUMNAS_RESULTADO_DISPONIBLES = [
-    "Ciclo Lectivo",
-    "Nombre del curso",
-    "Componente",
-    "Sesiones",
-    "Descripción",
-    "Fecha"
-]
+st.title("🎓 CertiDoc Ingeniería")
+st.write(
+    "Sistema automatizado para consultar, consolidar y procesar programación académica histórica por docente."
+)
 
-# Llaves nuevas para que Streamlit no reutilice estados viejos.
-COLUMNAS_CHECK_PREFIX = "check_columnas_resultado_visual_v5_"
-COLUMNAS_CONFIRMADAS_KEY = "columnas_resultado_confirmadas_visual_v5"
-
-# Si el usuario nunca toca Configurar columnas, se muestran todas.
-if COLUMNAS_CONFIRMADAS_KEY not in st.session_state:
-    st.session_state[COLUMNAS_CONFIRMADAS_KEY] = COLUMNAS_RESULTADO_DISPONIBLES.copy()
 
 # ============================================================
 # FUNCIONES AUXILIARES
@@ -617,313 +563,14 @@ def formatear_numero(valor):
 
     except Exception:
         return valor
-    
-def formatear_ciclo_para_correo(valor):
-    texto = str(valor).strip()
 
-    if texto.upper().startswith("PERIODO"):
-        return texto.upper()
-
-    return f"PERIODO {texto}".upper()
-
-
-def dataframe_a_tabla_html_correo(df):
-    """
-    Convierte la tabla seleccionada en una tabla HTML editable al pegar en Outlook.
-    Respeta las columnas que el usuario haya seleccionado.
-    """
-    columnas = list(df.columns)
-
-    estilo_tabla = (
-        "border-collapse:collapse;"
-        "font-family:Calibri, Arial, sans-serif;"
-        "font-size:14px;"
-        "color:#1f1f1f;"
-    )
-
-    estilo_th = (
-        "border:2px solid #2f6b3f;"
-        "background-color:#d9d2c9;"
-        "padding:6px 10px;"
-        "text-align:center;"
-        "font-weight:bold;"
-        "vertical-align:middle;"
-        "white-space:nowrap;"
-    )
-
-    estilo_td = (
-        "border:2px solid #2f6b3f;"
-        "padding:6px 10px;"
-        "text-align:center;"
-        "vertical-align:middle;"
-    )
-
-    html_tabla = f'<table style="{estilo_tabla}">'
-
-    # Encabezados
-    html_tabla += "<thead><tr>"
-    for col in columnas:
-        html_tabla += f'<th style="{estilo_th}">{html.escape(str(col).upper())}</th>'
-    html_tabla += "</tr></thead>"
-
-    html_tabla += "<tbody>"
-
-    # Si la tabla tiene Ciclo Lectivo, hacemos un efecto similar a la imagen:
-    # el periodo aparece agrupado con rowspan.
-    if "Ciclo Lectivo" in columnas:
-        otras_columnas = [c for c in columnas if c != "Ciclo Lectivo"]
-
-        for ciclo, grupo in df.groupby("Ciclo Lectivo", sort=False):
-            grupo = grupo.reset_index(drop=True)
-            rowspan = len(grupo)
-
-            for i, fila in grupo.iterrows():
-                html_tabla += "<tr>"
-
-                if i == 0:
-                    ciclo_texto = formatear_ciclo_para_correo(ciclo)
-                    html_tabla += (
-                        f'<td rowspan="{rowspan}" style="{estilo_td} font-weight:bold;">'
-                        f'{html.escape(ciclo_texto)}'
-                        f"</td>"
-                    )
-
-                for col in otras_columnas:
-                    valor = "" if pd.isna(fila[col]) else str(fila[col])
-                    html_tabla += f'<td style="{estilo_td}">{html.escape(valor)}</td>'
-
-                html_tabla += "</tr>"
-
-    else:
-        for _, fila in df.iterrows():
-            html_tabla += "<tr>"
-
-            for col in columnas:
-                valor = "" if pd.isna(fila[col]) else str(fila[col])
-                html_tabla += f'<td style="{estilo_td}">{html.escape(valor)}</td>'
-
-            html_tabla += "</tr>"
-
-    html_tabla += "</tbody></table>"
-
-    return html_tabla
-
-
-def generar_correo_html(nombre_profesor, tabla_mostrar):
-    """
-    Genera el cuerpo del correo en HTML para pegarlo en Outlook.
-    """
-    nombre_profesor_limpio = html.escape(str(nombre_profesor).strip().upper())
-
-    tabla_html = dataframe_a_tabla_html_correo(tabla_mostrar)
-
-    correo_html = f"""
-    <div style="font-family:Calibri, Arial, sans-serif; font-size:14px; color:#1f1f1f;">
-        <p><em>Buen Día</em></p>
-
-        <p><em>Cordial Saludo</em></p>
-
-        <p>
-            <em>
-                Apreciad@s, envío la información encontrada del profesor
-                <strong>{nombre_profesor_limpio}</strong>.
-            </em>
-        </p>
-
-        {tabla_html}
-
-        <p><em>Gracias por su amable atención.</em></p>
-    </div>
-    """
-
-    return correo_html
-
-
-def boton_copiar_correo(correo_html):
-    """
-    Botón HTML/JS que copia el correo como contenido enriquecido.
-    Al pegar en Outlook, debe conservar texto + tabla editable.
-    """
-    correo_json = json.dumps(correo_html)
-
-    componente = f"""
-    <div style="font-family:Calibri, Arial, sans-serif;">
-        <button
-            id="btnCopiarCorreo"
-            style="
-                background-color:#002B7A;
-                color:white;
-                border:1px solid #002B7A;
-             border-radius:0.5rem;
-                padding:0.45rem 0.75rem;
-                font-family:'Source Sans Pro', sans-serif;
-                font-size:16px;
-                font-weight:400;
-                line-height:1.6;
-                cursor:pointer;
-                width:100%;
-                min-height:42px;
-            "
-        >       
-            Copiar correo
-        </button>
-
-        <div
-            id="mensajeCopiado"
-            style="
-                margin-top:6px;
-                font-size:12px;
-                color:#16a34a;
-                font-weight:600;
-            "
-        ></div>
-
-        <script>
-            const correoHTML = {correo_json};
-
-            function htmlATextoPlano(html) {{
-                const temp = document.createElement("div");
-                temp.innerHTML = html;
-                return temp.innerText;
-            }}
-
-            function copiarFallback() {{
-                const contenedor = document.createElement("div");
-                contenedor.innerHTML = correoHTML;
-                contenedor.style.position = "fixed";
-                contenedor.style.left = "-9999px";
-                contenedor.style.top = "0";
-                document.body.appendChild(contenedor);
-
-                const rango = document.createRange();
-                rango.selectNodeContents(contenedor);
-
-                const seleccion = window.getSelection();
-                seleccion.removeAllRanges();
-                seleccion.addRange(rango);
-
-                document.execCommand("copy");
-
-                seleccion.removeAllRanges();
-                document.body.removeChild(contenedor);
-            }}
-
-            async function copiarCorreo() {{
-                const mensaje = document.getElementById("mensajeCopiado");
-
-                try {{
-                    if (navigator.clipboard && window.ClipboardItem) {{
-                        const blobHTML = new Blob([correoHTML], {{ type: "text/html" }});
-                        const blobTexto = new Blob([htmlATextoPlano(correoHTML)], {{ type: "text/plain" }});
-
-                        await navigator.clipboard.write([
-                            new ClipboardItem({{
-                                "text/html": blobHTML,
-                                "text/plain": blobTexto
-                            }})
-                        ]);
-                    }} else {{
-                        copiarFallback();
-                    }}
-
-                    mensaje.innerText = "Correo copiado. Ahora pégalo en Outlook con Ctrl + V.";
-                }} catch (error) {{
-                    try {{
-                        copiarFallback();
-                        mensaje.innerText = "Correo copiado. Ahora pégalo en Outlook con Ctrl + V.";
-                    }} catch (fallbackError) {{
-                        mensaje.style.color = "#dc2626";
-                        mensaje.innerText = "No se pudo copiar automáticamente. Intenta de nuevo.";
-                    }}
-                }}
-            }}
-
-            document.getElementById("btnCopiarCorreo").addEventListener("click", copiarCorreo);
-        </script>
-    </div>
-    """
-
-    components.html(componente, height=130)    
-    
-
-RUTA_BASE = Path(__file__).resolve().parent
-
-
-def imagen_a_base64(ruta_imagen):
-    with open(ruta_imagen, "rb") as archivo_imagen:
-        return base64.b64encode(archivo_imagen.read()).decode()
-
-
-logo_base64 = imagen_a_base64(RUTA_BASE / "assets" / "logo_sabana.png")
-
-st.markdown(
-    f"""
-    <style>
-        .infosabana-header {{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 28px;
-            margin-top: 15px;
-            margin-bottom: 40px;
-        }}
-
-        .infosabana-logo {{
-            width: 78px;
-            height: auto;
-            object-fit: contain;
-            flex-shrink: 0;
-        }}
-
-        .infosabana-title {{
-            color: #002B7A !important;
-            -webkit-text-fill-color: #002B7A !important;
-            font-family: "Plaisir Light Italic", "Plaisir", Georgia, serif !important;
-            font-style: italic !important;
-            font-weight: 300 !important;
-            font-size: 46px !important;
-            line-height: 1.12 !important;
-            margin: 0 !important;
-        }}
-
-        .infosabana-subtitle {{
-            color: #002B7A !important;
-            -webkit-text-fill-color: #002B7A !important;
-            font-family: "Plaisir Light Italic", "Plaisir", Georgia, serif !important;
-            font-style: italic !important;
-            font-weight: 300 !important;
-        }}
-
-        div.stButton > button[kind="primary"] {{
-            background-color: #002B7A !important;
-            border-color: #002B7A !important;
-            color: white !important;
-            font-weight: 600 !important;
-        }}
-
-        div.stButton > button[kind="primary"]:hover {{
-            background-color: #001C64 !important;
-            border-color: #001C64 !important;
-            color: white !important;
-        }}
-    </style>
-
-    <div class="infosabana-header">
-        <img class="infosabana-logo" src="data:image/png;base64,{logo_base64}">
-        <div class="infosabana-title">
-            InfoSabana - Consultor De<br>
-            Información Docente
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-st.divider()
 
 # ============================================================
 # 1. CARGAR EXCEL
 # ============================================================
+
+st.divider()
+st.subheader("1. Cargar Excel")
 
 archivo = st.file_uploader(
     "Sube el archivo Excel de programación académica",
@@ -934,17 +581,11 @@ if archivo is None:
     st.info("Sube el archivo Excel para comenzar.")
     st.stop()
 
-nombre_archivo = archivo.name.lower()
-
-if not nombre_archivo.endswith((".xlsx", ".xls")):
-    st.error("El archivo cargado no es válido. Por favor, sube un archivo de Excel en formato .xlsx o .xls.")
-    st.stop()
-
 try:
     excel = pd.ExcelFile(archivo)
     hojas = excel.sheet_names
-except Exception:
-    st.error("No fue posible leer el archivo. Verifica que sea un archivo de Excel válido y que no esté dañado.")
+except Exception as e:
+    st.error(f"No se pudo leer el archivo Excel. Error: {e}")
     st.stop()
 
 col_hoja, col_fila = st.columns([2, 1])
@@ -981,10 +622,7 @@ except Exception as e:
 
 st.success("Excel cargado correctamente.")
 
-st.markdown(
-    '<h3 class="infosabana-subtitle">Vista previa del Excel</h3>',
-    unsafe_allow_html=True
-)
+st.markdown("### Vista previa del Excel")
 
 m1, m2 = st.columns(2)
 m1.metric("Filas detectadas", f"{len(df):,}")
@@ -1075,10 +713,7 @@ if len(lista_ciclos) == 0:
 # ============================================================
 
 st.divider()
-st.markdown(
-    '<h3 class="infosabana-subtitle">Consulta Docente</h3>',
-    unsafe_allow_html=True
-)
+st.subheader("2. Consulta Docente")
 
 tipo_busqueda = st.selectbox(
     "Seleccione tipo de búsqueda",
@@ -1120,83 +755,8 @@ if orden_inicial > orden_final:
     st.error("El ciclo lectivo inicial no puede ser mayor que el ciclo lectivo final.")
     st.stop()
 
-col_buscar, col_config = st.columns([1, 1])
+buscar = st.button("Buscar información docente", type="primary")
 
-with col_buscar:
-    buscar = st.button("Buscar información docente", type="primary")
-
-with col_config:
-    with st.popover("⚙️ Configurar columnas"):
-        st.markdown("#### Columnas de la tabla")
-        st.caption("Selecciona mínimo 2 columnas para mostrar en el resultado.")
-
-        # Asegura que, la primera vez que se abre el popover,
-        # todos los checkboxes existan y estén visualmente marcados.
-        for columna in COLUMNAS_RESULTADO_DISPONIBLES:
-            key_checkbox = COLUMNAS_CHECK_PREFIX + columna
-
-            if key_checkbox not in st.session_state:
-                st.session_state[key_checkbox] = True
-
-        columnas_marcadas_actuales = [
-            columna
-            for columna in COLUMNAS_RESULTADO_DISPONIBLES
-            if st.session_state[COLUMNAS_CHECK_PREFIX + columna]
-        ]
-
-        todas_seleccionadas = len(columnas_marcadas_actuales) == len(COLUMNAS_RESULTADO_DISPONIBLES)
-
-        col_todos, col_confirmar = st.columns(2)
-
-        with col_todos:
-            texto_boton_todos = "Deseleccionar todas" if todas_seleccionadas else "Seleccionar todas"
-            alternar_todas = st.button(
-                texto_boton_todos,
-                key="btn_alternar_columnas_visual_v4"
-            )
-
-        if alternar_todas:
-            nuevo_estado = not todas_seleccionadas
-
-            for columna in COLUMNAS_RESULTADO_DISPONIBLES:
-                st.session_state[COLUMNAS_CHECK_PREFIX + columna] = nuevo_estado
-
-            st.rerun()
-
-        with col_confirmar:
-            confirmar_columnas = st.button(
-                "Confirmar selección",
-                key="btn_confirmar_columnas_visual_v4"
-            )
-
-        
-
-        st.divider()
-
-        for columna in COLUMNAS_RESULTADO_DISPONIBLES:
-            key_checkbox = COLUMNAS_CHECK_PREFIX + columna
-
-            st.checkbox(
-                columna,
-                value=True,
-                key=key_checkbox
-            )
-
-        columnas_temporales = [
-            columna
-            for columna in COLUMNAS_RESULTADO_DISPONIBLES
-            if st.session_state[COLUMNAS_CHECK_PREFIX + columna]
-        ]
-
-        if confirmar_columnas:
-            st.session_state[COLUMNAS_CONFIRMADAS_KEY] = columnas_temporales
-
-            if len(columnas_temporales) == 0:
-                st.warning("No tienes ninguna columna seleccionada. Selecciona mínimo 2 columnas antes de buscar.")
-            elif len(columnas_temporales) == 1:
-                st.warning("Solo tienes una columna seleccionada. Selecciona mínimo 2 columnas antes de buscar.")
-            else:
-                st.success("Selección confirmada.")
 
 # ============================================================
 # 5. PROCESAR BÚSQUEDA
@@ -1208,36 +768,7 @@ if buscar:
     valor_sin_ceros = quitar_ceros_izquierda(valor_busqueda)
 
     if valor_limpio == "":
-        st.error(
-            f"No has ingresado ningún valor en el campo de búsqueda. "
-            f"Escribe un {tipo_busqueda} para continuar."
-        )
-        st.stop()
-
-    if not valor_limpio.isdigit():
-        st.error(
-            f"El campo '{tipo_busqueda}' solo permite números. "
-            "Elimina letras, espacios o caracteres especiales e intenta nuevamente."
-        )
-        st.stop()
-
-    columnas_seleccionadas = st.session_state.get(
-        COLUMNAS_CONFIRMADAS_KEY,
-        COLUMNAS_RESULTADO_DISPONIBLES.copy()
-    )
-
-    if len(columnas_seleccionadas) == 0:
-        st.error(
-            "No tienes ninguna columna seleccionada. "
-            "Abre 'Configurar columnas' y selecciona mínimo 2 columnas para mostrar la tabla."
-        )
-        st.stop()
-
-    if len(columnas_seleccionadas) == 1:
-        st.error(
-            "Solo tienes una columna seleccionada. "
-            "Debes seleccionar mínimo 2 columnas para mostrar la tabla."
-        )
+        st.warning("Ingresa un valor para realizar la búsqueda.")
         st.stop()
 
     if tipo_busqueda == "Número documento docente":
@@ -1251,25 +782,14 @@ if buscar:
             (base["_id_prof_sin_ceros"] == valor_sin_ceros)
         )
 
-    registros_docente = base[filtro_id].copy()
-
-    if registros_docente.empty:
-        st.error(
-            f"No existe ningún docente registrado con el {tipo_busqueda} ingresado. "
-            "Verifica el número e intenta nuevamente."
-        )
-        st.stop()
-
-    resultado = registros_docente[
-        (registros_docente["_ciclo_orden"] >= orden_inicial) &
-        (registros_docente["_ciclo_orden"] <= orden_final)
+    resultado = base[
+        filtro_id &
+        (base["_ciclo_orden"] >= orden_inicial) &
+        (base["_ciclo_orden"] <= orden_final)
     ].copy()
 
     if resultado.empty:
-        st.warning(
-            "El docente existe en la base de datos, pero no tiene registros académicos "
-            "en el rango de ciclo lectivo seleccionado."
-        )
+        st.warning("No se encontraron registros para ese docente en el rango seleccionado.")
         st.stop()
 
     # ------------------------------------------------------------
@@ -1704,19 +1224,16 @@ if buscar:
     st.markdown(f"**{tipo_busqueda}:** {valor_busqueda}")
     st.markdown(f"**Rango de Ciclo Lectivo:** {ciclo_inicial} - {ciclo_final}")
 
-    columnas_seleccionadas = st.session_state.get(
-        COLUMNAS_CONFIRMADAS_KEY,
-        COLUMNAS_RESULTADO_DISPONIBLES.copy()
-    )
-
-    if len(columnas_seleccionadas) < 2:
-        st.error(
-            "La tabla no puede mostrarse con menos de 2 columnas. "
-            "Abre 'Configurar columnas' y selecciona mínimo 2 columnas."
-        )
-        st.stop()
-
-    tabla_mostrar = tabla_final[columnas_seleccionadas].copy()
+    tabla_mostrar = tabla_final[
+        [
+            "Ciclo Lectivo",
+            "Nombre del curso",
+            "Componente",
+            "Sesiones",
+            "Descripción",
+            "Fecha"
+        ]
+    ].copy()
 
     st.subheader("Tabla de resultados")
 
@@ -1734,18 +1251,26 @@ if buscar:
         st.write("Números de clase consolidados:", clases_df["_num_clase"].nunique())
         st.write("Materias/componentes finales:", len(tabla_mostrar))
 
+        st.dataframe(
+            clases_df[
+                [
+                    "Ciclo Lectivo",
+                    "_num_clase",
+                    "Nombre del curso",
+                    "Componente",
+                    "Horas semanales clase",
+                    "_horario_debug"
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True
+        )
+
     excel_bytes = dataframe_a_excel_bytes(tabla_mostrar)
-    correo_html = generar_correo_html(nombre_profesor, tabla_mostrar)
 
-    col_descargar, col_copiar, col_vacio = st.columns([1.2, 1.2, 3])
-
-    with col_descargar:
-        st.download_button(
-            label="Descargar resultado en Excel",
-            data=excel_bytes,
-            file_name=f"resultado_docente_{valor_limpio}_{ciclo_inicial}_a_{ciclo_final}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    st.download_button(
+        label="Descargar resultado en Excel",
+        data=excel_bytes,
+        file_name=f"resultado_docente_{valor_limpio}_{ciclo_inicial}_a_{ciclo_final}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-    with col_copiar:
-        boton_copiar_correo(correo_html)
