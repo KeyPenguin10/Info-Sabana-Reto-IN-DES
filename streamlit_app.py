@@ -919,6 +919,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
 st.divider()
 
 # ============================================================
@@ -1080,129 +1081,73 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-tipo_busqueda = st.selectbox(
-    "Seleccione tipo de búsqueda",
-    ["Número documento docente", "Id profesor"]
-)
+with st.form("form_consulta_docente", clear_on_submit=False):
 
-valor_busqueda = st.text_input(
-    f"Ingrese {tipo_busqueda}",
-    placeholder="Ejemplo: 80243251"
-)
-
-col_ini, col_fin = st.columns(2)
-
-with col_ini:
-    ciclo_inicial = st.selectbox(
-        "Ciclo lectivo inicial",
-        lista_ciclos,
-        index=0
+    tipo_busqueda = st.selectbox(
+        "Seleccione tipo de búsqueda",
+        ["Número documento docente", "Id profesor"]
     )
 
-with col_fin:
-    ciclo_final = st.selectbox(
-        "Ciclo lectivo final",
-        lista_ciclos,
-        index=len(lista_ciclos) - 1
+    valor_busqueda = st.text_input(
+        f"Ingrese {tipo_busqueda}",
+        placeholder="Ejemplo: 80243251"
     )
 
-orden_inicial = periodos_disponibles.loc[
-    periodos_disponibles["_ciclo_limpio"] == ciclo_inicial,
-    "_ciclo_orden"
-].iloc[0]
+    col_ini, col_fin = st.columns(2)
 
-orden_final = periodos_disponibles.loc[
-    periodos_disponibles["_ciclo_limpio"] == ciclo_final,
-    "_ciclo_orden"
-].iloc[0]
+    with col_ini:
+        ciclo_inicial = st.selectbox(
+            "Ciclo lectivo inicial",
+            lista_ciclos,
+            index=0
+        )
 
-if orden_inicial > orden_final:
-    st.error("El ciclo lectivo inicial no puede ser mayor que el ciclo lectivo final.")
-    st.stop()
+    with col_fin:
+        ciclo_final = st.selectbox(
+            "Ciclo lectivo final",
+            lista_ciclos,
+            index=len(lista_ciclos) - 1
+        )
 
-col_buscar, col_config = st.columns([1, 1])
+    col_buscar, col_config = st.columns([1, 1])
 
-with col_buscar:
-    buscar = st.button("Buscar información docente", type="primary")
+    with col_buscar:
+        buscar = st.form_submit_button(
+            "Buscar información docente",
+            type="primary"
+        )
 
-with col_config:
-    with st.popover("⚙️ Configurar columnas"):
-        st.markdown("#### Columnas de la tabla")
-        st.caption("Selecciona mínimo 2 columnas para mostrar en el resultado.")
-
-        # Asegura que, la primera vez que se abre el popover,
-        # todos los checkboxes existan y estén visualmente marcados.
-        for columna in COLUMNAS_RESULTADO_DISPONIBLES:
-            key_checkbox = COLUMNAS_CHECK_PREFIX + columna
-
-            if key_checkbox not in st.session_state:
-                st.session_state[key_checkbox] = True
-
-        columnas_marcadas_actuales = [
-            columna
-            for columna in COLUMNAS_RESULTADO_DISPONIBLES
-            if st.session_state[COLUMNAS_CHECK_PREFIX + columna]
-        ]
-
-        todas_seleccionadas = len(columnas_marcadas_actuales) == len(COLUMNAS_RESULTADO_DISPONIBLES)
-
-        col_todos, col_confirmar = st.columns(2)
-
-        with col_todos:
-            texto_boton_todos = "Deseleccionar todas" if todas_seleccionadas else "Seleccionar todas"
-            alternar_todas = st.button(
-                texto_boton_todos,
-                key="btn_alternar_columnas_visual_v4"
+    with col_config:
+        with st.popover("⚙️ Configurar columnas"):
+            st.markdown("#### Columnas de la tabla")
+            st.caption(
+                "Selecciona mínimo 2 columnas. "
+                "La selección se aplicará cuando oprimas 'Buscar información docente'."
             )
 
-        if alternar_todas:
-            nuevo_estado = not todas_seleccionadas
+            st.divider()
 
             for columna in COLUMNAS_RESULTADO_DISPONIBLES:
-                st.session_state[COLUMNAS_CHECK_PREFIX + columna] = nuevo_estado
+                key_checkbox = COLUMNAS_CHECK_PREFIX + columna
 
-            st.rerun()
+                if key_checkbox not in st.session_state:
+                    st.session_state[key_checkbox] = True
 
-        with col_confirmar:
-            confirmar_columnas = st.button(
-                "Confirmar selección",
-                key="btn_confirmar_columnas_visual_v4"
-            )
-
-        
-
-        st.divider()
-
-        for columna in COLUMNAS_RESULTADO_DISPONIBLES:
-            key_checkbox = COLUMNAS_CHECK_PREFIX + columna
-
-            st.checkbox(
-                columna,
-                value=True,
-                key=key_checkbox
-            )
-
-        columnas_temporales = [
-            columna
-            for columna in COLUMNAS_RESULTADO_DISPONIBLES
-            if st.session_state[COLUMNAS_CHECK_PREFIX + columna]
-        ]
-
-        if confirmar_columnas:
-            st.session_state[COLUMNAS_CONFIRMADAS_KEY] = columnas_temporales
-
-            if len(columnas_temporales) == 0:
-                st.warning("No tienes ninguna columna seleccionada. Selecciona mínimo 2 columnas antes de buscar.")
-            elif len(columnas_temporales) == 1:
-                st.warning("Solo tienes una columna seleccionada. Selecciona mínimo 2 columnas antes de buscar.")
-            else:
-                st.success("Selección confirmada.")
-
+                st.checkbox(
+                    columna,
+                    key=key_checkbox
+                )
 # ============================================================
 # 5. PROCESAR BÚSQUEDA
 # ============================================================
 
 if buscar:
+
+    st.session_state[COLUMNAS_CONFIRMADAS_KEY] = [
+        columna
+        for columna in COLUMNAS_RESULTADO_DISPONIBLES
+        if st.session_state.get(COLUMNAS_CHECK_PREFIX + columna, True)
+    ]
 
     valor_limpio = limpiar_codigo(valor_busqueda)
     valor_sin_ceros = quitar_ceros_izquierda(valor_busqueda)
@@ -1214,13 +1159,6 @@ if buscar:
         )
         st.stop()
 
-    if not valor_limpio.isdigit():
-        st.error(
-            f"El campo '{tipo_busqueda}' solo permite números. "
-            "Elimina letras, espacios o caracteres especiales e intenta nuevamente."
-        )
-        st.stop()
-
     columnas_seleccionadas = st.session_state.get(
         COLUMNAS_CONFIRMADAS_KEY,
         COLUMNAS_RESULTADO_DISPONIBLES.copy()
@@ -1229,7 +1167,7 @@ if buscar:
     if len(columnas_seleccionadas) == 0:
         st.error(
             "No tienes ninguna columna seleccionada. "
-            "Abre 'Configurar columnas' y selecciona mínimo 2 columnas para mostrar la tabla."
+            "Selecciona mínimo 2 columnas para mostrar la tabla."
         )
         st.stop()
 
@@ -1237,6 +1175,23 @@ if buscar:
         st.error(
             "Solo tienes una columna seleccionada. "
             "Debes seleccionar mínimo 2 columnas para mostrar la tabla."
+        )
+        st.stop()
+
+    orden_inicial = periodos_disponibles.loc[
+        periodos_disponibles["_ciclo_limpio"] == ciclo_inicial,
+        "_ciclo_orden"
+    ].iloc[0]
+
+    orden_final = periodos_disponibles.loc[
+        periodos_disponibles["_ciclo_limpio"] == ciclo_final,
+        "_ciclo_orden"
+    ].iloc[0]
+
+    if orden_inicial > orden_final:
+        st.error(
+            "El ciclo lectivo inicial no puede ser mayor que el ciclo lectivo final. "
+            "Ajusta el rango e intenta nuevamente."
         )
         st.stop()
 
@@ -1744,7 +1699,8 @@ if buscar:
             label="Descargar resultado en Excel",
             data=excel_bytes,
             file_name=f"resultado_docente_{valor_limpio}_{ciclo_inicial}_a_{ciclo_final}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            on_click="ignore"
     )
 
     with col_copiar:
