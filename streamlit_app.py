@@ -845,7 +845,77 @@ def boton_copiar_correo(correo_html):
     </div>
     """
 
-    components.html(componente, height=130)  
+    components.html(componente, height=130) 
+
+# ============================================================
+# FUNCIONES CACHEADAS PARA MEJORAR RENDIMIENTO
+# ============================================================
+
+@st.cache_data(show_spinner="Leyendo archivo Excel...")
+def obtener_hojas_excel_cache(archivo_bytes):
+    archivo_en_memoria = io.BytesIO(archivo_bytes)
+    excel = pd.ExcelFile(archivo_en_memoria)
+    return excel.sheet_names
+
+
+@st.cache_data(show_spinner="Cargando hoja del Excel...")
+def cargar_hoja_excel_cache(archivo_bytes, hoja_seleccionada, fila_encabezado):
+    archivo_en_memoria = io.BytesIO(archivo_bytes)
+
+    df = pd.read_excel(
+        archivo_en_memoria,
+        sheet_name=hoja_seleccionada,
+        header=fila_encabezado - 1
+    )
+
+    df = df.dropna(axis=1, how="all")
+
+    return df
+
+
+@st.cache_data(show_spinner="Preparando base de datos...")
+def preparar_base_cache(df):
+    columnas_detectadas, columnas_faltantes = validar_columnas_requeridas(df)
+
+    if columnas_faltantes:
+        return columnas_detectadas, columnas_faltantes, None, None, None
+
+    col_ciclo = columnas_detectadas["Ciclo Lectivo"]
+    col_doc = columnas_detectadas["Número documento docente"]
+    col_id_prof = columnas_detectadas["Id profesor"]
+
+    base_cache = df.copy()
+
+    base_cache["_doc_limpio"] = base_cache[col_doc].apply(limpiar_codigo)
+    base_cache["_doc_sin_ceros"] = base_cache[col_doc].apply(quitar_ceros_izquierda)
+
+    base_cache["_id_prof_limpio"] = base_cache[col_id_prof].apply(limpiar_codigo)
+    base_cache["_id_prof_sin_ceros"] = base_cache[col_id_prof].apply(quitar_ceros_izquierda)
+
+    base_cache["_ciclo_parseado"] = base_cache[col_ciclo].apply(parsear_periodo)
+    base_cache["_ciclo_limpio"] = base_cache["_ciclo_parseado"].apply(lambda x: x[0])
+    base_cache["_ciclo_orden"] = base_cache["_ciclo_parseado"].apply(lambda x: x[1])
+
+    base_cache = base_cache[base_cache["_ciclo_orden"].notna()].copy()
+
+    if base_cache.empty:
+        return columnas_detectadas, columnas_faltantes, base_cache, None, []
+
+    periodos_disponibles_cache = (
+        base_cache[["_ciclo_limpio", "_ciclo_orden"]]
+        .drop_duplicates()
+        .sort_values("_ciclo_orden")
+    )
+
+    lista_ciclos_cache = periodos_disponibles_cache["_ciclo_limpio"].tolist()
+
+    return (
+        columnas_detectadas,
+        columnas_faltantes,
+        base_cache,
+        periodos_disponibles_cache,
+        lista_ciclos_cache
+    )
 
     
 RUTA_BASE = Path(__file__).resolve().parent
@@ -1012,12 +1082,11 @@ st.info(
 )
 
 try:
-    archivo_en_memoria = io.BytesIO(RUTA_EXCEL_USUARIO.read_bytes())
-    excel = pd.ExcelFile(archivo_en_memoria)
-    hojas = excel.sheet_names
+    archivo_bytes_actual = RUTA_EXCEL_USUARIO.read_bytes()
+    hojas = obtener_hojas_excel_cache(archivo_bytes_actual)
 
 except Exception:
-    st.error("No fue posible leer el archivo guardado. Verifica que sea un archivo de Excel válido y que no esté dañado.")
+    st.error("No fue posible leer el archivo. Verifica que sea un archivo de Excel válido y que no esté dañado.")
     st.stop()
 
 col_hoja, col_fila = st.columns([2, 1])
@@ -1038,15 +1107,11 @@ with col_fila:
     )
 
 try:
-    archivo_en_memoria = io.BytesIO(RUTA_EXCEL_USUARIO.read_bytes())
-
-    df = pd.read_excel(
-        archivo_en_memoria,
-        sheet_name=hoja_seleccionada,
-        header=fila_encabezado - 1
+    df = cargar_hoja_excel_cache(
+        archivo_bytes_actual,
+        hoja_seleccionada,
+        fila_encabezado
     )
-
-    df = df.dropna(axis=1, how="all")
 
 except Exception as e:
     st.error(f"No se pudo cargar la hoja seleccionada. Error: {e}")
@@ -1071,10 +1136,10 @@ st.dataframe(
 
 
 # ============================================================
-# 2. DETECTAR COLUMNAS AUTOMÁTICAMENTE
+# 2. DETECTAR COLUMNAS Y PREPARAR BASE
 # ============================================================
 
-columnas_detectadas, columnas_faltantes = validar_columnas_requeridas(df)
+columnas_detectadas, columnas_faltantes, base, periodos_disponibles, lista_ciclos = preparar_base_cache(df)
 
 if columnas_faltantes:
     st.error(
@@ -1085,6 +1150,14 @@ if columnas_faltantes:
     st.write("Columnas faltantes:")
     st.write(columnas_faltantes)
 
+    st.stop()
+
+if base is None or base.empty:
+    st.error("No se detectaron ciclos lectivos válidos. Revisa la columna 'Ciclo Lectivo'.")
+    st.stop()
+
+if len(lista_ciclos) == 0:
+    st.error("No hay ciclos lectivos disponibles para consultar.")
     st.stop()
 
 
@@ -1105,44 +1178,6 @@ COL_HORA_INICIO = columnas_detectadas["Hora Inicio"]
 COL_HORA_FINAL = columnas_detectadas["Hora Final"]
 COL_INSTALACION = columnas_detectadas["ID Instalación"]
 
-
-# ============================================================
-# 3. PREPARAR BASE
-# ============================================================
-
-base = df.copy()
-
-# Limpieza de identificadores
-base["_doc_limpio"] = base[COL_DOC].apply(limpiar_codigo)
-base["_doc_sin_ceros"] = base[COL_DOC].apply(quitar_ceros_izquierda)
-
-base["_id_prof_limpio"] = base[COL_ID_PROF].apply(limpiar_codigo)
-base["_id_prof_sin_ceros"] = base[COL_ID_PROF].apply(quitar_ceros_izquierda)
-
-# Limpieza de ciclos
-base["_ciclo_parseado"] = base[COL_CICLO].apply(parsear_periodo)
-base["_ciclo_limpio"] = base["_ciclo_parseado"].apply(lambda x: x[0])
-base["_ciclo_orden"] = base["_ciclo_parseado"].apply(lambda x: x[1])
-
-base = base[base["_ciclo_orden"].notna()].copy()
-
-if base.empty:
-    st.error("No se detectaron ciclos lectivos válidos. Revisa la columna 'Ciclo Lectivo'.")
-    st.stop()
-
-periodos_disponibles = (
-    base[["_ciclo_limpio", "_ciclo_orden"]]
-    .drop_duplicates()
-    .sort_values("_ciclo_orden")
-)
-
-lista_ciclos = periodos_disponibles["_ciclo_limpio"].tolist()
-
-if len(lista_ciclos) == 0:
-    st.error("No hay ciclos lectivos disponibles para consultar.")
-    st.stop()
-
-
 # ============================================================
 # 4. CONSULTA DOCENTE
 # ============================================================
@@ -1153,16 +1188,34 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+TIPO_BUSQUEDA_KEY = "tipo_busqueda_docente_actual"
+VALOR_BUSQUEDA_KEY = "valor_busqueda_docente_actual"
+CICLO_INICIAL_KEY = "ciclo_inicial_docente_actual"
+CICLO_FINAL_KEY = "ciclo_final_docente_actual"
+
+if TIPO_BUSQUEDA_KEY not in st.session_state:
+    st.session_state[TIPO_BUSQUEDA_KEY] = "Número documento docente"
+
+# Este selector va fuera del form para que el label cambie inmediatamente.
+tipo_busqueda_visual = st.selectbox(
+    "Seleccione tipo de búsqueda",
+    ["Número documento docente", "Id profesor"],
+    key=TIPO_BUSQUEDA_KEY
+)
+
+if tipo_busqueda_visual == "Id profesor":
+    label_input = "Ingrese ID docente"
+    placeholder_input = "Ejemplo: 133997"
+else:
+    label_input = "Ingrese número de documento"
+    placeholder_input = "Ejemplo: 80243251"
+
 with st.form("form_consulta_docente", clear_on_submit=False):
 
-    tipo_busqueda = st.selectbox(
-        "Seleccione tipo de búsqueda",
-        ["Número documento docente", "Id profesor"]
-    )
-
     valor_busqueda = st.text_input(
-        f"Ingrese {tipo_busqueda}",
-        placeholder="Ejemplo: 80243251"
+        label_input,
+        placeholder=placeholder_input,
+        key=VALOR_BUSQUEDA_KEY
     )
 
     col_ini, col_fin = st.columns(2)
@@ -1171,14 +1224,16 @@ with st.form("form_consulta_docente", clear_on_submit=False):
         ciclo_inicial = st.selectbox(
             "Ciclo lectivo inicial",
             lista_ciclos,
-            index=0
+            index=0,
+            key=CICLO_INICIAL_KEY
         )
 
     with col_fin:
         ciclo_final = st.selectbox(
             "Ciclo lectivo final",
             lista_ciclos,
-            index=len(lista_ciclos) - 1
+            index=len(lista_ciclos) - 1,
+            key=CICLO_FINAL_KEY
         )
 
     col_buscar, col_config = st.columns([1, 1])
@@ -1214,6 +1269,11 @@ with st.form("form_consulta_docente", clear_on_submit=False):
 # ============================================================
 
 if buscar:
+
+    tipo_busqueda = st.session_state[TIPO_BUSQUEDA_KEY]
+    valor_busqueda = st.session_state[VALOR_BUSQUEDA_KEY]
+    ciclo_inicial = st.session_state[CICLO_INICIAL_KEY]
+    ciclo_final = st.session_state[CICLO_FINAL_KEY]
 
     st.session_state[COLUMNAS_CONFIRMADAS_KEY] = [
         columna
@@ -1267,16 +1327,29 @@ if buscar:
         )
         st.stop()
 
-    if tipo_busqueda == "Número documento docente":
+    tipo_busqueda_norm = normalizar_texto(tipo_busqueda)
+
+    if tipo_busqueda_norm in [
+        "NUMERO DOCUMENTO DOCENTE",
+        "NUMERO DE DOCUMENTO",
+        "DOCUMENTO DE IDENTIDAD",
+        "DOCUMENTO"
+    ]:
         filtro_id = (
             (base["_doc_limpio"] == valor_limpio) |
             (base["_doc_sin_ceros"] == valor_sin_ceros)
         )
-    else:
+    elif tipo_busqueda_norm in [
+        "ID PROFESOR",
+        "ID DOCENTE"
+    ]:
         filtro_id = (
             (base["_id_prof_limpio"] == valor_limpio) |
             (base["_id_prof_sin_ceros"] == valor_sin_ceros)
         )
+    else:
+        st.error("Tipo de búsqueda no reconocido. Selecciona documento o ID docente.")
+        st.stop()
 
     registros_docente = base[filtro_id].copy()
 
