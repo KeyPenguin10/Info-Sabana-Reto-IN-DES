@@ -12,6 +12,22 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
+st.set_page_config(
+    page_title="InfoSabana - Información Docente",
+    page_icon="📘",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+RUTA_BASE = Path(__file__).resolve().parent
+RUTA_LOGO_SABANA = RUTA_BASE / "assets" / "logo_sabana.png"
+
+st.set_page_config(
+    page_title="InfoSabana - Consultor de Información Docente",
+    page_icon=str(RUTA_LOGO_SABANA),
+    layout="centered"
+)
+
 # ============================================================
 # CONFIGURACIÓN GENERAL
 # ============================================================
@@ -19,44 +35,226 @@ import streamlit.components.v1 as components
 st.markdown(
     """
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --azul-sabana: #002B7A;
+            --azul-sabana-hover: #001C64;
+            --azul-claro: #EAF1FF;
+            --azul-borde: #D8E5FF;
+            --fondo-app: #F8FAFC;
+            --texto-principal: #1F2937;
+            --texto-secundario: #64748B;
+            --borde-suave: #E5E7EB;
+            --exito: #10B981;
+            --sombra-suave: 0 10px 28px rgba(15, 23, 42, 0.08);
+            --radio-card: 18px;
+        }
+
+        html, body, [class*="css"] {
+            font-family: 'Inter', 'Source Sans Pro', Arial, sans-serif !important;
+        }
+
+        .stApp {
+            background: radial-gradient(circle at top left, #EEF4FF 0, #F8FAFC 340px, #F8FAFC 100%) !important;
+            color: var(--texto-principal) !important;
+        }
+
+        .block-container {
+            max-width: 1120px !important;
+            padding-top: 1.2rem !important;
+            padding-bottom: 3rem !important;
+        }
+
         .infosabana-title {
-            text-align: center !important;
-            color: #002B7A !important;
-            -webkit-text-fill-color: #002B7A !important;
-            font-family: "Plaisir Light Italic", "Plaisir", Georgia, serif !important;
-            font-style: italic !important;
-            font-weight: 300 !important;
-            font-size: 46px !important;
-            line-height: 1.15 !important;
-            margin-top: 10px !important;
-            margin-bottom: 35px !important;
+            color: var(--azul-sabana) !important;
+            -webkit-text-fill-color: var(--azul-sabana) !important;
+            font-family: 'Inter', Arial, sans-serif !important;
+            font-style: normal !important;
+            font-weight: 800 !important;
+            font-size: clamp(34px, 4vw, 50px) !important;
+            line-height: 1.08 !important;
+            letter-spacing: -0.04em !important;
+            margin: 0 !important;
         }
 
         .infosabana-subtitle {
-            color: #002B7A !important;
-            -webkit-text-fill-color: #002B7A !important;
-            font-family: "Plaisir Light Italic", "Plaisir", Georgia, serif !important;
-            font-style: italic !important;
-            font-weight: 500 !important;
+            color: var(--azul-sabana) !important;
+            -webkit-text-fill-color: var(--azul-sabana) !important;
+            font-family: 'Inter', Arial, sans-serif !important;
+            font-style: normal !important;
+            font-weight: 750 !important;
+            letter-spacing: -0.02em !important;
         }
 
-        div.stButton > button[kind="primary"] {
+        .infosabana-hero {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            margin: 14px auto 28px auto;
+            padding: 26px 28px;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid var(--azul-borde);
+            border-radius: 24px;
+            box-shadow: var(--sombra-suave);
+        }
+
+        .infosabana-logo {
+            width: 82px;
+            height: auto;
+            object-fit: contain;
+            flex-shrink: 0;
+            filter: drop-shadow(0 6px 12px rgba(0, 43, 122, 0.12));
+        }
+
+        .infosabana-hero-text {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .infosabana-tagline {
+            margin: 0;
+            color: var(--texto-secundario);
+            font-size: 15px;
+            font-weight: 500;
+            max-width: 620px;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid var(--borde-suave);
+            border-radius: var(--radio-card);
+            box-shadow: var(--sombra-suave);
+            padding: 22px 24px;
+            margin: 18px 0;
+        }
+
+        .info-card-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 8px 0;
+            color: var(--azul-sabana);
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+
+        .info-card-text {
+            margin: 0;
+            color: var(--texto-secundario);
+            font-size: 15px;
+            line-height: 1.55;
+        }
+
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: var(--azul-claro);
+            color: var(--azul-sabana);
+            font-weight: 700;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        div[data-testid="stFileUploader"] {
+            background: #FFFFFF;
+            border: 1.5px dashed #B7C7E8;
+            border-radius: 16px;
+            padding: 12px 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        div[data-testid="stFileUploader"] label {
+            color: var(--azul-sabana) !important;
+            font-weight: 750 !important;
+        }
+
+        div[data-testid="stFileUploader"] section {
+            border-radius: 14px !important;
+        }
+
+        div[data-testid="stFileUploader"] button {
+            background-color: var(--azul-sabana) !important;
+            color: white !important;
+            border-radius: 10px !important;
+            border: 1px solid var(--azul-sabana) !important;
+            font-weight: 700 !important;
+        }
+
+        div.stDownloadButton {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        div.stDownloadButton > button {
             background-color: #002B7A !important;
             border-color: #002B7A !important;
             color: white !important;
             font-weight: 600 !important;
+            border-radius: 0.65rem !important;
+            height: 48px !important;
+            min-height: 48px !important;
+            padding: 0 18px !important;
+            line-height: 1 !important;
+            box-shadow: none !important;
+            width: 100% !important;
         }
 
-        div.stButton > button[kind="primary"]:hover {
+        div.stDownloadButton > button:hover {
             background-color: #001C64 !important;
             border-color: #001C64 !important;
             color: white !important;
         }
 
+        div.stDownloadButton > button p {
+            color: white !important;
+            font-weight: 600 !important;
+            font-size: 15px !important;
+            line-height: 1.1 !important;
+        }
 
+        div[data-testid="stMetric"] {
+            background: #FFFFFF;
+            border: 1px solid var(--borde-suave);
+            border-radius: 14px;
+            padding: 14px 16px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+        }
+
+        div[data-testid="stDataFrame"] {
+            border: 1px solid var(--borde-suave);
+            border-radius: 14px;
+            overflow: visible !important;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+        }
+
+
+        .stAlert {
+            border-radius: 14px !important;
+        }
+
+        hr {
+            margin: 1.6rem 0 !important;
+        }
+
+        @media (max-width: 720px) {
+            .infosabana-hero {
+                flex-direction: column;
+                text-align: center;
+                padding: 22px 18px;
+            }
+
+            .infosabana-logo {
+                width: 70px;
+            }
+        }
     </style>
-
-    <!-- Título viejo eliminado -->
     """,
     unsafe_allow_html=True
 )
@@ -505,6 +703,13 @@ def validar_columnas_requeridas(df):
         "Componente": [
             "Componente"
         ],
+        "Total Inscritos": [
+            "Total Inscritos",
+            "Total inscritos",
+            "TOTAL INSCRITOS",
+            "Total de Inscritos",
+            "Total estudiantes inscritos"
+        ],
         "Descripción Materia": [
             "Descripción Materia",
             "Descripcion Materia",
@@ -628,6 +833,374 @@ def formatear_ciclo_para_correo(valor):
 
     return f"PERIODO {texto}".upper()
 
+# ============================================================
+# FUNCIONES PARA BÚSQUEDA POR NOMBRE DE PROFESOR
+# ============================================================
+
+def valor_es_solo_numeros(valor):
+    """
+    Valida que un documento o ID docente tenga únicamente números.
+    Permite ceros a la izquierda.
+    """
+    texto = limpiar_codigo(valor)
+    return bool(re.fullmatch(r"\d+", texto))
+
+
+def validar_nombre_profesor_busqueda(valor):
+    """
+    Valida que la búsqueda por nombre tenga solo letras y espacios.
+    También exige mínimo dos palabras para evitar búsquedas demasiado amplias.
+    """
+    texto_original = str(valor).strip()
+
+    if texto_original == "":
+        return {
+            "ok": False,
+            "mensaje": (
+                "Ingresa el nombre del profesor para realizar la búsqueda. "
+                "Escribe nombres y apellidos para evitar coincidencias ambiguas."
+            ),
+            "tokens": [],
+            "nombre_norm": ""
+        }
+
+    if not re.fullmatch(r"[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+", texto_original):
+        return {
+            "ok": False,
+            "mensaje": (
+                "Para buscar por nombre, usa únicamente letras y espacios. "
+                "No incluyas números, códigos, puntos, comas ni caracteres especiales."
+            ),
+            "tokens": [],
+            "nombre_norm": ""
+        }
+
+    nombre_norm = normalizar_texto(texto_original)
+    tokens = nombre_norm.split()
+
+    if len(tokens) < 2:
+        return {
+            "ok": False,
+            "mensaje": (
+                "La búsqueda por nombre es demasiado amplia. "
+                "Escribe al menos un nombre y un apellido del profesor. "
+                "Ejemplo: PEREZ ADRIAN o PEREZ HERNANDEZ ADRIAN FELIPE."
+            ),
+            "tokens": tokens,
+            "nombre_norm": nombre_norm
+        }
+
+    return {
+        "ok": True,
+        "mensaje": "",
+        "tokens": tokens,
+        "nombre_norm": nombre_norm
+    }
+
+
+def preparar_docentes_unicos_para_nombre(base, col_nombre_prof, col_doc, col_id_prof):
+    """
+    Crea una base única de docentes para búsqueda por nombre.
+    Separa nombres, documentos e ID profesor sin duplicar por cada clase.
+    """
+    docentes = base[
+        [col_nombre_prof, col_doc, col_id_prof]
+    ].copy()
+
+    docentes["_nombre_mostrar"] = docentes[col_nombre_prof].apply(formatear_valor)
+    docentes["_nombre_norm"] = docentes[col_nombre_prof].apply(normalizar_texto)
+
+    docentes["_doc_limpio_tmp"] = docentes[col_doc].apply(limpiar_codigo)
+    docentes["_id_prof_limpio_tmp"] = docentes[col_id_prof].apply(limpiar_codigo)
+
+    docentes = docentes[
+        docentes["_nombre_norm"] != ""
+    ].copy()
+
+    docentes = docentes.drop_duplicates(
+        subset=[
+            "_nombre_norm",
+            "_doc_limpio_tmp",
+            "_id_prof_limpio_tmp"
+        ]
+    )
+
+    return docentes
+
+
+def reducir_candidatos_por_identidad(candidatos):
+    """
+    Evita contar varias veces al mismo docente si aparece repetido por clases.
+    Prioriza documento; si no existe documento, usa ID profesor.
+    """
+    if candidatos.empty:
+        return candidatos
+
+    candidatos = candidatos.copy()
+
+    candidatos_con_doc = candidatos[
+        candidatos["_doc_limpio_tmp"] != ""
+    ].copy()
+
+    if not candidatos_con_doc.empty:
+        return candidatos_con_doc.drop_duplicates(
+            subset=["_doc_limpio_tmp"]
+        )
+
+    candidatos_con_id = candidatos[
+        candidatos["_id_prof_limpio_tmp"] != ""
+    ].copy()
+
+    if not candidatos_con_id.empty:
+        return candidatos_con_id.drop_duplicates(
+            subset=["_id_prof_limpio_tmp"]
+        )
+
+    return candidatos.drop_duplicates(
+        subset=["_nombre_norm"]
+    )
+
+
+def mostrar_candidatos_nombre_profesor(candidatos):
+    """
+    Muestra coincidencias de docentes cuando la búsqueda por nombre es ambigua.
+    """
+    if candidatos is None or candidatos.empty:
+        return
+
+    tabla_candidatos = candidatos[
+        [
+            "_nombre_mostrar",
+            "_doc_limpio_tmp",
+            "_id_prof_limpio_tmp"
+        ]
+    ].copy()
+
+    tabla_candidatos = tabla_candidatos.rename(
+        columns={
+            "_nombre_mostrar": "Nombre profesor",
+            "_doc_limpio_tmp": "Documento docente",
+            "_id_prof_limpio_tmp": "ID docente"
+        }
+    )
+
+    st.dataframe(
+        tabla_candidatos,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+def resolver_busqueda_por_nombre_profesor(
+    base,
+    nombre_ingresado,
+    col_nombre_prof,
+    col_doc,
+    col_id_prof,
+    max_candidatos=8
+):
+    """
+    Resuelve una búsqueda por nombre de profesor de forma controlada.
+
+    Reglas:
+    - Solo letras y espacios.
+    - Mínimo dos palabras.
+    - Ignora tildes, mayúsculas y espacios extra.
+    - El orden no importa.
+    - Si hay una única coincidencia, devuelve documento o ID para buscar.
+    - Si hay varias coincidencias, pide más datos.
+    """
+    validacion = validar_nombre_profesor_busqueda(nombre_ingresado)
+
+    if not validacion["ok"]:
+        return {
+            "ok": False,
+            "estado": "entrada_invalida",
+            "mensaje": validacion["mensaje"],
+            "candidatos": pd.DataFrame()
+        }
+
+    tokens = validacion["tokens"]
+    nombre_norm = validacion["nombre_norm"]
+
+    docentes = preparar_docentes_unicos_para_nombre(
+        base=base,
+        col_nombre_prof=col_nombre_prof,
+        col_doc=col_doc,
+        col_id_prof=col_id_prof
+    )
+
+    if docentes.empty:
+        return {
+            "ok": False,
+            "estado": "sin_docentes",
+            "mensaje": (
+                "No fue posible consultar por nombre porque no se encontraron "
+                "nombres de profesores válidos en la base cargada."
+            ),
+            "candidatos": pd.DataFrame()
+        }
+
+    # 1. Primero: coincidencia exacta del nombre completo normalizado.
+    exactos = docentes[
+        docentes["_nombre_norm"] == nombre_norm
+    ].copy()
+
+    exactos = reducir_candidatos_por_identidad(exactos)
+
+    if len(exactos) == 1:
+        candidato = exactos.iloc[0]
+
+        documento = candidato["_doc_limpio_tmp"]
+        id_profesor = candidato["_id_prof_limpio_tmp"]
+
+        if documento != "":
+            return {
+                "ok": True,
+                "estado": "unico",
+                "tipo_identificador": "documento",
+                "valor_identificador": documento,
+                "nombre_mostrar": candidato["_nombre_mostrar"],
+                "mensaje": ""
+            }
+
+        if id_profesor != "":
+            return {
+                "ok": True,
+                "estado": "unico",
+                "tipo_identificador": "id",
+                "valor_identificador": id_profesor,
+                "nombre_mostrar": candidato["_nombre_mostrar"],
+                "mensaje": ""
+            }
+
+        return {
+            "ok": False,
+            "estado": "sin_identificador",
+            "mensaje": (
+                "Se encontró el docente, pero no tiene documento ni ID docente válido "
+                "para realizar la consulta."
+            ),
+            "candidatos": exactos
+        }
+
+    if len(exactos) > 1:
+        return {
+            "ok": False,
+            "estado": "duplicado_exacto",
+            "mensaje": (
+                "Se encontraron varios docentes con exactamente el mismo nombre. "
+                "Para evitar certificar a la persona equivocada, realiza la búsqueda "
+                "por documento docente o ID docente."
+            ),
+            "candidatos": exactos.head(max_candidatos)
+        }
+
+    # 2. Segunda opción: coincidencia por palabras completas, sin importar el orden.
+    def coincide_por_palabras(nombre_norm_docente):
+        palabras_docente = set(nombre_norm_docente.split())
+        return all(token in palabras_docente for token in tokens)
+
+    candidatos = docentes[
+        docentes["_nombre_norm"].apply(coincide_por_palabras)
+    ].copy()
+
+    candidatos = reducir_candidatos_por_identidad(candidatos)
+
+    # 3. Si no hubo coincidencia por palabra exacta, probamos coincidencia parcial controlada.
+    # Esto ayuda si escriben una palabra incompleta, pero solo se usa como fallback.
+    if candidatos.empty:
+        def coincide_parcial(nombre_norm_docente):
+            palabras_docente = nombre_norm_docente.split()
+
+            for token in tokens:
+                encontrado = any(
+                    palabra.startswith(token) or token.startswith(palabra)
+                    for palabra in palabras_docente
+                    if len(token) >= 3 and len(palabra) >= 3
+                )
+
+                if not encontrado:
+                    return False
+
+            return True
+
+        candidatos = docentes[
+            docentes["_nombre_norm"].apply(coincide_parcial)
+        ].copy()
+
+        candidatos = reducir_candidatos_por_identidad(candidatos)
+
+    if candidatos.empty:
+        return {
+            "ok": False,
+            "estado": "no_encontrado",
+            "mensaje": (
+                "No se encontró ningún docente con el nombre ingresado. "
+                "Verifica la escritura o intenta buscar por documento docente o ID docente."
+            ),
+            "candidatos": pd.DataFrame()
+        }
+
+    if len(candidatos) > max_candidatos:
+        return {
+            "ok": False,
+            "estado": "demasiados",
+            "mensaje": (
+                "La búsqueda por nombre es demasiado amplia y genera muchas coincidencias. "
+                "Escribe el nombre completo con nombres y apellidos, o realiza la búsqueda "
+                "por documento docente o ID docente."
+            ),
+            "candidatos": candidatos.head(max_candidatos)
+        }
+
+    if len(candidatos) > 1:
+        return {
+            "ok": False,
+            "estado": "ambiguo",
+            "mensaje": (
+                "Se encontraron varios docentes que coinciden con el nombre ingresado. "
+                "Escribe el nombre completo con nombres y apellidos, o realiza la búsqueda "
+                "por documento docente o ID docente para evitar errores."
+            ),
+            "candidatos": candidatos.head(max_candidatos)
+        }
+
+    candidato = candidatos.iloc[0]
+
+    documento = candidato["_doc_limpio_tmp"]
+    id_profesor = candidato["_id_prof_limpio_tmp"]
+
+    if documento != "":
+        return {
+            "ok": True,
+            "estado": "unico",
+            "tipo_identificador": "documento",
+            "valor_identificador": documento,
+            "nombre_mostrar": candidato["_nombre_mostrar"],
+            "mensaje": ""
+        }
+
+    if id_profesor != "":
+        return {
+            "ok": True,
+            "estado": "unico",
+            "tipo_identificador": "id",
+            "valor_identificador": id_profesor,
+            "nombre_mostrar": candidato["_nombre_mostrar"],
+            "mensaje": ""
+        }
+
+    return {
+        "ok": False,
+        "estado": "sin_identificador",
+        "mensaje": (
+            "Se encontró el docente, pero no tiene documento ni ID docente válido "
+            "para realizar la consulta."
+        ),
+        "candidatos": candidatos
+    }
+
 
 def dataframe_a_tabla_html_correo(df):
     """
@@ -749,103 +1322,138 @@ def boton_copiar_correo(correo_html):
     correo_json = json.dumps(correo_html)
 
     componente = f"""
-    <div style="font-family:Calibri, Arial, sans-serif;">
-        <button
-            id="btnCopiarCorreo"
-            style="
-                background-color:#002B7A;
-                color:white;
-                border:1px solid #002B7A;
-             border-radius:0.5rem;
-                padding:0.45rem 0.75rem;
-                font-family:'Source Sans Pro', sans-serif;
-                font-size:16px;
-                font-weight:400;
-                line-height:1.6;
-                cursor:pointer;
-                width:100%;
-                min-height:42px;
-            "
-        >       
-            Copiar correo
-        </button>
+    <html>
+        <head>
+            <style>
+                html, body {{
+                    margin: 0;
+                    padding: 0;
+                    background: transparent !important;
+                    overflow: hidden;
+                    font-family: Inter, 'Source Sans Pro', Calibri, Arial, sans-serif;
+                }}
 
-        <div
-            id="mensajeCopiado"
-            style="
-                margin-top:6px;
-                font-size:12px;
-                color:#16a34a;
-                font-weight:600;
-            "
-        ></div>
+                .copy-wrapper {{
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    background: transparent !important;
+                }}
 
-        <script>
-            const correoHTML = {correo_json};
+                #btnCopiarCorreo {{
+                    background-color: #002B7A;
+                    color: white;
+                    border: 1px solid #002B7A;
+                    border-radius: 0.65rem;
+                    padding: 0 18px;
+                    font-family: Inter, 'Source Sans Pro', Calibri, Arial, sans-serif;
+                    font-size: 15px;
+                    font-weight: 600;
+                    line-height: 1;
+                    cursor: pointer;
+                    width: 100%;
+                    height: 48px;
+                    min-height: 48px;
+                    box-sizing: border-box;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0;
+                    box-shadow: none;
+                }}
 
-            function htmlATextoPlano(html) {{
-                const temp = document.createElement("div");
-                temp.innerHTML = html;
-                return temp.innerText;
-            }}
+                #btnCopiarCorreo:hover {{
+                    background-color: #001C64;
+                    border-color: #001C64;
+                }}
 
-            function copiarFallback() {{
-                const contenedor = document.createElement("div");
-                contenedor.innerHTML = correoHTML;
-                contenedor.style.position = "fixed";
-                contenedor.style.left = "-9999px";
-                contenedor.style.top = "0";
-                document.body.appendChild(contenedor);
+                #mensajeCopiado {{
+                    margin-top: 5px;
+                    font-size: 12px;
+                    color: #16a34a;
+                    font-weight: 600;
+                    line-height: 1.2;
+                    background: transparent !important;
+                }}
+            </style>
+        </head>
 
-                const rango = document.createRange();
-                rango.selectNodeContents(contenedor);
+        <body>
+            <div class="copy-wrapper">
+                <button id="btnCopiarCorreo">
+                    Copiar correo
+                </button>
 
-                const seleccion = window.getSelection();
-                seleccion.removeAllRanges();
-                seleccion.addRange(rango);
+                <div id="mensajeCopiado"></div>
+            </div>
 
-                document.execCommand("copy");
+            <script>
+                const correoHTML = {correo_json};
 
-                seleccion.removeAllRanges();
-                document.body.removeChild(contenedor);
-            }}
+                function htmlATextoPlano(html) {{
+                    const temp = document.createElement("div");
+                    temp.innerHTML = html;
+                    return temp.innerText;
+                }}
 
-            async function copiarCorreo() {{
-                const mensaje = document.getElementById("mensajeCopiado");
+                function copiarFallback() {{
+                    const contenedor = document.createElement("div");
+                    contenedor.innerHTML = correoHTML;
+                    contenedor.style.position = "fixed";
+                    contenedor.style.left = "-9999px";
+                    contenedor.style.top = "0";
+                    document.body.appendChild(contenedor);
 
-                try {{
-                    if (navigator.clipboard && window.ClipboardItem) {{
-                        const blobHTML = new Blob([correoHTML], {{ type: "text/html" }});
-                        const blobTexto = new Blob([htmlATextoPlano(correoHTML)], {{ type: "text/plain" }});
+                    const rango = document.createRange();
+                    rango.selectNodeContents(contenedor);
 
-                        await navigator.clipboard.write([
-                            new ClipboardItem({{
-                                "text/html": blobHTML,
-                                "text/plain": blobTexto
-                            }})
-                        ]);
-                    }} else {{
-                        copiarFallback();
-                    }}
+                    const seleccion = window.getSelection();
+                    seleccion.removeAllRanges();
+                    seleccion.addRange(rango);
 
-                    mensaje.innerText = "Correo copiado. Ahora pégalo en Outlook con Ctrl + V.";
-                }} catch (error) {{
+                    document.execCommand("copy");
+
+                    seleccion.removeAllRanges();
+                    document.body.removeChild(contenedor);
+                }}
+
+                async function copiarCorreo() {{
+                    const mensaje = document.getElementById("mensajeCopiado");
+
                     try {{
-                        copiarFallback();
+                        if (navigator.clipboard && window.ClipboardItem) {{
+                            const blobHTML = new Blob([correoHTML], {{ type: "text/html" }});
+                            const blobTexto = new Blob([htmlATextoPlano(correoHTML)], {{ type: "text/plain" }});
+
+                            await navigator.clipboard.write([
+                                new ClipboardItem({{
+                                    "text/html": blobHTML,
+                                    "text/plain": blobTexto
+                                }})
+                            ]);
+                        }} else {{
+                            copiarFallback();
+                        }}
+
                         mensaje.innerText = "Correo copiado. Ahora pégalo en Outlook con Ctrl + V.";
-                    }} catch (fallbackError) {{
-                        mensaje.style.color = "#dc2626";
-                        mensaje.innerText = "No se pudo copiar automáticamente. Intenta de nuevo.";
+                    }} catch (error) {{
+                        try {{
+                            copiarFallback();
+                            mensaje.innerText = "Correo copiado. Ahora pégalo en Outlook con Ctrl + V.";
+                        }} catch (fallbackError) {{
+                            mensaje.style.color = "#dc2626";
+                            mensaje.innerText = "No se pudo copiar automáticamente. Intenta de nuevo.";
+                        }}
                     }}
                 }}
-            }}
 
-            document.getElementById("btnCopiarCorreo").addEventListener("click", copiarCorreo);
-        </script>
-    </div>
+                document.getElementById("btnCopiarCorreo").addEventListener("click", copiarCorreo);
+            </script>
+        </body>
+    </html>
     """
 
-    components.html(componente, height=130) 
+    components.html(componente, height=105, scrolling=False)
 
 # ============================================================
 # FUNCIONES CACHEADAS PARA MEJORAR RENDIMIENTO
@@ -883,14 +1491,30 @@ def preparar_base_cache(df):
     col_ciclo = columnas_detectadas["Ciclo Lectivo"]
     col_doc = columnas_detectadas["Número documento docente"]
     col_id_prof = columnas_detectadas["Id profesor"]
+    col_nombre_prof = columnas_detectadas["Nombre profesor"]
+    col_total_inscritos = columnas_detectadas["Total Inscritos"]
 
     base_cache = df.copy()
+
+    # Filtrar registros con estudiantes inscritos.
+    # Solo se cuentan clases con Total Inscritos >= 1.
+    base_cache["_total_inscritos_num"] = pd.to_numeric(
+        base_cache[col_total_inscritos],
+        errors="coerce"
+    ).fillna(0)
+
+    base_cache = base_cache[
+        base_cache["_total_inscritos_num"] >= 1
+    ].copy()
+
 
     base_cache["_doc_limpio"] = base_cache[col_doc].apply(limpiar_codigo)
     base_cache["_doc_sin_ceros"] = base_cache[col_doc].apply(quitar_ceros_izquierda)
 
     base_cache["_id_prof_limpio"] = base_cache[col_id_prof].apply(limpiar_codigo)
     base_cache["_id_prof_sin_ceros"] = base_cache[col_id_prof].apply(quitar_ceros_izquierda)
+
+    base_cache["_nombre_prof_norm"] = base_cache[col_nombre_prof].apply(normalizar_texto)
 
     base_cache["_ciclo_parseado"] = base_cache[col_ciclo].apply(parsear_periodo)
     base_cache["_ciclo_limpio"] = base_cache["_ciclo_parseado"].apply(lambda x: x[0])
@@ -917,8 +1541,6 @@ def preparar_base_cache(df):
         lista_ciclos_cache
     )
 
-    
-RUTA_BASE = Path(__file__).resolve().parent
 
 
 def imagen_a_base64(ruta_imagen):
@@ -930,75 +1552,39 @@ logo_base64 = imagen_a_base64(RUTA_BASE / "assets" / "logo_sabana.png")
 
 st.markdown(
     f"""
-    <style>
-        .infosabana-header {{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 28px;
-            margin-top: 15px;
-            margin-bottom: 40px;
-        }}
-
-        .infosabana-logo {{
-            width: 78px;
-            height: auto;
-            object-fit: contain;
-            flex-shrink: 0;
-        }}
-
-        .infosabana-title {{
-            color: #002B7A !important;
-            -webkit-text-fill-color: #002B7A !important;
-            font-family: "Plaisir Light Italic", "Plaisir", Georgia, serif !important;
-            font-style: italic !important;
-            font-weight: 300 !important;
-            font-size: 46px !important;
-            line-height: 1.12 !important;
-            margin: 0 !important;
-        }}
-
-        .infosabana-subtitle {{
-            color: #002B7A !important;
-            -webkit-text-fill-color: #002B7A !important;
-            font-family: "Plaisir Light Italic", "Plaisir", Georgia, serif !important;
-            font-style: italic !important;
-            font-weight: 300 !important;
-        }}
-
-        div.stButton > button[kind="primary"] {{
-            background-color: #002B7A !important;
-            border-color: #002B7A !important;
-            color: white !important;
-            font-weight: 600 !important;
-        }}
-
-        div.stButton > button[kind="primary"]:hover {{
-            background-color: #001C64 !important;
-            border-color: #001C64 !important;
-            color: white !important;
-        }}
-    </style>
-
-    <div class="infosabana-header">
+    <div class="infosabana-hero">
         <img class="infosabana-logo" src="data:image/png;base64,{logo_base64}">
-        <div class="infosabana-title">
-            InfoSabana - Consultor De<br>
-            Información Docente
+        <div class="infosabana-hero-text">
+            <div class="infosabana-title">
+                InfoSabana - Consultor de<br>
+                Información Docente
+            </div>
+            <p class="infosabana-tagline">
+                Sistema de consulta y consolidación de programación académica para certificados docentes.
+            </p>
         </div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-
-
-
-st.divider()
-
 # ============================================================
 # 1. CARGAR EXCEL
 # ============================================================
+
+st.markdown(
+    """
+    <div class="info-card">
+        <div class="section-label">1.</div>
+        <h2 class="info-card-title">Carga tu archivo de programación académica</h2>
+        <p class="info-card-text">
+            Arrastra o selecciona tu archivo Excel (.xlsx o .xls). Procesaremos el archivo automáticamente y
+            guardaremos esta carga para este usuario usando la URL actual.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 CARPETA_ARCHIVOS_USUARIOS = RUTA_BASE / "archivos_usuarios"
 CARPETA_ARCHIVOS_USUARIOS.mkdir(exist_ok=True)
@@ -1027,7 +1613,7 @@ RUTA_EXCEL_USUARIO = CARPETA_USUARIO / "archivo_excel.bin"
 RUTA_METADATA_USUARIO = CARPETA_USUARIO / "metadata.json"
 
 archivo_subido = st.file_uploader(
-    "Sube el archivo Excel de programación académica",
+    "Arrastra o selecciona tu archivo Excel (.xlsx o .xls)",
     type=["xlsx", "xls"],
     key="archivo_excel_usuario"
 )
@@ -1062,7 +1648,7 @@ if archivo_subido is not None:
 # ------------------------------------------------------------
 
 if not RUTA_EXCEL_USUARIO.exists():
-    st.info("Sube el archivo Excel para comenzar.")
+    st.info("Carga tu archivo Excel para comenzar.")
     st.stop()
 
 try:
@@ -1077,7 +1663,7 @@ except Exception:
 st.success(f"Archivo activo: {nombre_archivo}")
 
 st.info(
-    "El archivo quedó guardado para este usuario. "
+    "🔒 El archivo quedó guardado para este usuario. "
     "Si cierras la página y quieres recuperarlo después, vuelve a entrar usando esta misma URL del navegador."
 )
 
@@ -1117,10 +1703,10 @@ except Exception as e:
     st.error(f"No se pudo cargar la hoja seleccionada. Error: {e}")
     st.stop()
 
-st.success("Excel cargado correctamente.")
+st.success("Archivo procesado correctamente.")
 
 st.markdown(
-    '<h3 class="infosabana-subtitle">Vista previa del Excel</h3>',
+    '<h3 class="infosabana-subtitle">Vista previa del archivo</h3>',
     unsafe_allow_html=True
 )
 
@@ -1165,6 +1751,7 @@ if len(lista_ciclos) == 0:
 COL_CICLO = columnas_detectadas["Ciclo Lectivo"]
 COL_CURSO = columnas_detectadas["Nombre del curso"]
 COL_COMPONENTE = columnas_detectadas["Componente"]
+COL_TOTAL_INSCRITOS = columnas_detectadas["Total Inscritos"]
 COL_DESCRIPCION = columnas_detectadas["Descripción Materia"]
 COL_FECHA_INICIAL = columnas_detectadas["Fecha inicial"]
 COL_FECHA_FINAL = columnas_detectadas["Fecha final"]
@@ -1189,33 +1776,49 @@ st.markdown(
 )
 
 TIPO_BUSQUEDA_KEY = "tipo_busqueda_docente_actual"
-VALOR_BUSQUEDA_KEY = "valor_busqueda_docente_actual"
+VALOR_DOCUMENTO_KEY = "valor_busqueda_documento_docente_actual"
+VALOR_ID_KEY = "valor_busqueda_id_docente_actual"
+VALOR_NOMBRE_KEY = "valor_busqueda_nombre_profesor_actual"
 CICLO_INICIAL_KEY = "ciclo_inicial_docente_actual"
 CICLO_FINAL_KEY = "ciclo_final_docente_actual"
 
-if TIPO_BUSQUEDA_KEY not in st.session_state:
+TIPOS_BUSQUEDA_DOCENTE = [
+    "Número documento docente",
+    "Nombre profesor",
+    "Id profesor"
+]
+
+if st.session_state.get(TIPO_BUSQUEDA_KEY) not in TIPOS_BUSQUEDA_DOCENTE:
     st.session_state[TIPO_BUSQUEDA_KEY] = "Número documento docente"
 
 # Este selector va fuera del form para que el label cambie inmediatamente.
 tipo_busqueda_visual = st.selectbox(
     "Seleccione tipo de búsqueda",
-    ["Número documento docente", "Id profesor"],
+    TIPOS_BUSQUEDA_DOCENTE,
     key=TIPO_BUSQUEDA_KEY
 )
 
 if tipo_busqueda_visual == "Id profesor":
     label_input = "Ingrese ID docente"
-    placeholder_input = "Ejemplo: 133997"
+    placeholder_input = "Ejemplo: 000012345"
+    valor_key_actual = VALOR_ID_KEY
+
+elif tipo_busqueda_visual == "Nombre profesor":
+    label_input = "Ingrese nombre del profesor"
+    placeholder_input = "Ejemplo: PEREZ HERNANDEZ ADRIAN FELIPE"
+    valor_key_actual = VALOR_NOMBRE_KEY
+
 else:
     label_input = "Ingrese número de documento"
-    placeholder_input = "Ejemplo: 80243251"
+    placeholder_input = "Ejemplo: 21435432"
+    valor_key_actual = VALOR_DOCUMENTO_KEY
 
 with st.form("form_consulta_docente", clear_on_submit=False):
 
-    valor_busqueda = st.text_input(
+    st.text_input(
         label_input,
         placeholder=placeholder_input,
-        key=VALOR_BUSQUEDA_KEY
+        key=valor_key_actual
     )
 
     col_ini, col_fin = st.columns(2)
@@ -1271,7 +1874,14 @@ with st.form("form_consulta_docente", clear_on_submit=False):
 if buscar:
 
     tipo_busqueda = st.session_state[TIPO_BUSQUEDA_KEY]
-    valor_busqueda = st.session_state[VALOR_BUSQUEDA_KEY]
+
+    if tipo_busqueda == "Id profesor":
+        valor_busqueda = st.session_state.get(VALOR_ID_KEY, "")
+    elif tipo_busqueda == "Nombre profesor":
+        valor_busqueda = st.session_state.get(VALOR_NOMBRE_KEY, "")
+    else:
+        valor_busqueda = st.session_state.get(VALOR_DOCUMENTO_KEY, "")
+
     ciclo_inicial = st.session_state[CICLO_INICIAL_KEY]
     ciclo_final = st.session_state[CICLO_FINAL_KEY]
 
@@ -1281,14 +1891,25 @@ if buscar:
         if st.session_state.get(COLUMNAS_CHECK_PREFIX + columna, True)
     ]
 
-    valor_limpio = limpiar_codigo(valor_busqueda)
-    valor_sin_ceros = quitar_ceros_izquierda(valor_busqueda)
+    valor_texto = str(valor_busqueda).strip()
 
-    if valor_limpio == "":
-        st.error(
-            f"No has ingresado ningún valor en el campo de búsqueda. "
-            f"Escribe un {tipo_busqueda} para continuar."
-        )
+    if valor_texto == "":
+        if tipo_busqueda == "Nombre profesor":
+            st.error(
+                "Ingresa el nombre del profesor para realizar la búsqueda. "
+                "Escribe nombres y apellidos para evitar coincidencias ambiguas."
+            )
+        elif tipo_busqueda == "Id profesor":
+            st.error(
+                "Ingresa el ID docente para realizar la búsqueda. "
+                "Este campo debe contener únicamente números."
+            )
+        else:
+            st.error(
+                "Ingresa el número de documento del docente para realizar la búsqueda. "
+                "Este campo debe contener únicamente números."
+            )
+
         st.stop()
 
     columnas_seleccionadas = st.session_state.get(
@@ -1329,36 +1950,137 @@ if buscar:
 
     tipo_busqueda_norm = normalizar_texto(tipo_busqueda)
 
+    # ------------------------------------------------------------
+    # Resolver búsqueda por documento, ID o nombre
+    # ------------------------------------------------------------
+
     if tipo_busqueda_norm in [
         "NUMERO DOCUMENTO DOCENTE",
         "NUMERO DE DOCUMENTO",
         "DOCUMENTO DE IDENTIDAD",
         "DOCUMENTO"
     ]:
+        if not valor_es_solo_numeros(valor_busqueda):
+            st.error(
+                "El número de documento debe contener únicamente números. "
+                "No incluyas letras, puntos, comas, espacios ni caracteres especiales."
+            )
+            st.stop()
+
+        valor_limpio = limpiar_codigo(valor_busqueda)
+        valor_sin_ceros = quitar_ceros_izquierda(valor_busqueda)
+
         filtro_id = (
             (base["_doc_limpio"] == valor_limpio) |
             (base["_doc_sin_ceros"] == valor_sin_ceros)
         )
+
+        registros_docente = base[filtro_id].copy()
+
+        if registros_docente.empty:
+            st.error(
+                "No se encontró ningún docente registrado con el número de documento ingresado. "
+                "Verifica el dato e intenta nuevamente."
+            )
+            st.stop()
+
     elif tipo_busqueda_norm in [
         "ID PROFESOR",
         "ID DOCENTE"
     ]:
+        if not valor_es_solo_numeros(valor_busqueda):
+            st.error(
+                "El ID docente debe contener únicamente números. "
+                "No incluyas letras, puntos, comas, espacios ni caracteres especiales."
+            )
+            st.stop()
+
+        valor_limpio = limpiar_codigo(valor_busqueda)
+        valor_sin_ceros = quitar_ceros_izquierda(valor_busqueda)
+
         filtro_id = (
             (base["_id_prof_limpio"] == valor_limpio) |
             (base["_id_prof_sin_ceros"] == valor_sin_ceros)
         )
+
+        registros_docente = base[filtro_id].copy()
+
+        if registros_docente.empty:
+            st.error(
+                "No se encontró ningún docente registrado con el ID docente ingresado. "
+                "Verifica el dato e intenta nuevamente."
+            )
+            st.stop()
+
+    elif tipo_busqueda_norm in [
+        "NOMBRE PROFESOR",
+        "NOMBRE DOCENTE",
+        "PROFESOR",
+        "DOCENTE"
+    ]:
+        resultado_nombre = resolver_busqueda_por_nombre_profesor(
+            base=base,
+            nombre_ingresado=valor_busqueda,
+            col_nombre_prof=COL_NOMBRE_PROF,
+            col_doc=COL_DOC,
+            col_id_prof=COL_ID_PROF,
+            max_candidatos=8
+        )
+
+        if not resultado_nombre["ok"]:
+            st.error(resultado_nombre["mensaje"])
+
+            candidatos = resultado_nombre.get("candidatos", pd.DataFrame())
+
+            if candidatos is not None and not candidatos.empty:
+                st.caption(
+                    "Coincidencias encontradas. Para evitar errores, usa el documento docente "
+                    "o el ID docente del profesor correcto."
+                )
+                mostrar_candidatos_nombre_profesor(candidatos)
+
+            st.stop()
+
+        tipo_identificador = resultado_nombre["tipo_identificador"]
+        valor_identificador = resultado_nombre["valor_identificador"]
+
+        valor_limpio = limpiar_codigo(valor_identificador)
+        valor_sin_ceros = quitar_ceros_izquierda(valor_identificador)
+
+        # Para mostrar en pantalla el nombre limpio encontrado.
+        valor_busqueda = resultado_nombre["nombre_mostrar"]
+
+        if tipo_identificador == "documento":
+            filtro_id = (
+                (base["_doc_limpio"] == valor_limpio) |
+                (base["_doc_sin_ceros"] == valor_sin_ceros)
+            )
+        else:
+            filtro_id = (
+                (base["_id_prof_limpio"] == valor_limpio) |
+                (base["_id_prof_sin_ceros"] == valor_sin_ceros)
+            )
+
+        registros_docente = base[filtro_id].copy()
+
+        if registros_docente.empty:
+            st.error(
+                "Se identificó un docente por nombre, pero no fue posible recuperar "
+                "sus registros académicos. Intenta realizar la búsqueda por documento "
+                "docente o ID docente."
+            )
+            st.stop()
+
     else:
-        st.error("Tipo de búsqueda no reconocido. Selecciona documento o ID docente.")
-        st.stop()
-
-    registros_docente = base[filtro_id].copy()
-
-    if registros_docente.empty:
         st.error(
-            f"No existe ningún docente registrado con el {tipo_busqueda} ingresado. "
-            "Verifica el número e intenta nuevamente."
+            "Tipo de búsqueda no reconocido. Selecciona documento docente, ID docente "
+            "o nombre profesor."
         )
         st.stop()
+
+    # ------------------------------------------------------------
+    # Aplicar rango de ciclo lectivo seleccionado
+    # ------------------------------------------------------------
 
     resultado = registros_docente[
         (registros_docente["_ciclo_orden"] >= orden_inicial) &
@@ -1375,6 +2097,7 @@ if buscar:
     # ------------------------------------------------------------
     # Limpieza de columnas internas para cálculo
     # ------------------------------------------------------------
+
 
     resultado["_nombre_profesor"] = resultado[COL_NOMBRE_PROF].apply(formatear_valor)
 
@@ -1821,10 +2544,11 @@ if buscar:
     st.subheader("Tabla de resultados")
 
     st.dataframe(
-        tabla_mostrar,
+      tabla_mostrar,
         use_container_width=True,
         hide_index=True
     )
+    
 
     # Resumen útil para validar, no afecta la tabla final
     with st.expander("Resumen de procesamiento"):
