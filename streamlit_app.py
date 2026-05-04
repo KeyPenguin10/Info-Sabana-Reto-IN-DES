@@ -6,6 +6,7 @@ import base64
 import unicodedata
 from pathlib import Path
 from datetime import datetime, time
+from uuid import uuid4
 
 import pandas as pd
 import streamlit as st
@@ -59,6 +60,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 SEMANAS_CICLO = 16
 
@@ -843,9 +845,9 @@ def boton_copiar_correo(correo_html):
     </div>
     """
 
-    components.html(componente, height=130)    
-    
+    components.html(componente, height=130)  
 
+    
 RUTA_BASE = Path(__file__).resolve().parent
 
 
@@ -920,32 +922,102 @@ st.markdown(
 )
 
 
+
+
 st.divider()
 
 # ============================================================
 # 1. CARGAR EXCEL
 # ============================================================
 
-archivo = st.file_uploader(
+CARPETA_ARCHIVOS_USUARIOS = RUTA_BASE / "archivos_usuarios"
+CARPETA_ARCHIVOS_USUARIOS.mkdir(exist_ok=True)
+
+PARAM_USUARIO = "usuario"
+
+# ------------------------------------------------------------
+# Crear o recuperar un ID único para este usuario/navegador.
+# Este ID queda en la URL como ?usuario=...
+# Así, si la persona refresca la página, se conserva el archivo.
+# ------------------------------------------------------------
+
+id_usuario = st.query_params.get(PARAM_USUARIO, "")
+
+if isinstance(id_usuario, list):
+    id_usuario = id_usuario[0]
+
+if not re.fullmatch(r"[a-f0-9]{32}", str(id_usuario)):
+    id_usuario = uuid4().hex
+    st.query_params[PARAM_USUARIO] = id_usuario
+
+CARPETA_USUARIO = CARPETA_ARCHIVOS_USUARIOS / id_usuario
+CARPETA_USUARIO.mkdir(exist_ok=True)
+
+RUTA_EXCEL_USUARIO = CARPETA_USUARIO / "archivo_excel.bin"
+RUTA_METADATA_USUARIO = CARPETA_USUARIO / "metadata.json"
+
+archivo_subido = st.file_uploader(
     "Sube el archivo Excel de programación académica",
-    type=["xlsx", "xls"]
+    type=["xlsx", "xls"],
+    key="archivo_excel_usuario"
 )
 
-if archivo is None:
+# ------------------------------------------------------------
+# Si el usuario sube un archivo nuevo, se guarda físicamente.
+# Si ya había uno guardado para ese usuario, se reemplaza.
+# ------------------------------------------------------------
+
+if archivo_subido is not None:
+    nombre_archivo_subido = archivo_subido.name
+
+    if not nombre_archivo_subido.lower().endswith((".xlsx", ".xls")):
+        st.error("El archivo cargado no es válido. Por favor, sube un archivo de Excel en formato .xlsx o .xls.")
+        st.stop()
+
+    RUTA_EXCEL_USUARIO.write_bytes(archivo_subido.getvalue())
+
+    metadata = {
+        "nombre_archivo": nombre_archivo_subido,
+        "fecha_carga": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    RUTA_METADATA_USUARIO.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=4),
+        encoding="utf-8"
+    )
+
+# ------------------------------------------------------------
+# Si no hay archivo subido en este momento, intentamos cargar
+# el archivo que ya estaba guardado para este usuario.
+# ------------------------------------------------------------
+
+if not RUTA_EXCEL_USUARIO.exists():
     st.info("Sube el archivo Excel para comenzar.")
     st.stop()
 
-nombre_archivo = archivo.name.lower()
+try:
+    metadata = json.loads(
+        RUTA_METADATA_USUARIO.read_text(encoding="utf-8")
+    )
+    nombre_archivo = metadata.get("nombre_archivo", "archivo cargado")
 
-if not nombre_archivo.endswith((".xlsx", ".xls")):
-    st.error("El archivo cargado no es válido. Por favor, sube un archivo de Excel en formato .xlsx o .xls.")
-    st.stop()
+except Exception:
+    nombre_archivo = "archivo cargado"
+
+st.success(f"Archivo activo: {nombre_archivo}")
+
+st.info(
+    "El archivo quedó guardado para este usuario. "
+    "Si cierras la página y quieres recuperarlo después, vuelve a entrar usando esta misma URL del navegador."
+)
 
 try:
-    excel = pd.ExcelFile(archivo)
+    archivo_en_memoria = io.BytesIO(RUTA_EXCEL_USUARIO.read_bytes())
+    excel = pd.ExcelFile(archivo_en_memoria)
     hojas = excel.sheet_names
+
 except Exception:
-    st.error("No fue posible leer el archivo. Verifica que sea un archivo de Excel válido y que no esté dañado.")
+    st.error("No fue posible leer el archivo guardado. Verifica que sea un archivo de Excel válido y que no esté dañado.")
     st.stop()
 
 col_hoja, col_fila = st.columns([2, 1])
@@ -966,10 +1038,10 @@ with col_fila:
     )
 
 try:
-    archivo.seek(0)
+    archivo_en_memoria = io.BytesIO(RUTA_EXCEL_USUARIO.read_bytes())
 
     df = pd.read_excel(
-        archivo,
+        archivo_en_memoria,
         sheet_name=hoja_seleccionada,
         header=fila_encabezado - 1
     )
@@ -1118,7 +1190,7 @@ with st.form("form_consulta_docente", clear_on_submit=False):
         )
 
     with col_config:
-        with st.popover("⚙️ Configurar columnas"):
+        with st.popover("Configurar columnas"):
             st.markdown("#### Columnas de la tabla")
             st.caption(
                 "Selecciona mínimo 2 columnas. "
@@ -1701,7 +1773,7 @@ if buscar:
             file_name=f"resultado_docente_{valor_limpio}_{ciclo_inicial}_a_{ciclo_final}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             on_click="ignore"
-    )
+        )
 
     with col_copiar:
         boton_copiar_correo(correo_html)
