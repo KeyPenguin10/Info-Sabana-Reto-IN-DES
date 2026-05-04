@@ -12,20 +12,14 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(
-    page_title="InfoSabana - Información Docente",
-    page_icon="📘",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
 RUTA_BASE = Path(__file__).resolve().parent
 RUTA_LOGO_SABANA = RUTA_BASE / "assets" / "logo_sabana.png"
 
 st.set_page_config(
-    page_title="InfoSabana - Consultor de Información Docente",
+    page_title="InfoSabana - Información Docente",
     page_icon=str(RUTA_LOGO_SABANA),
-    layout="centered"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # ============================================================
@@ -49,6 +43,25 @@ st.markdown(
             --exito: #10B981;
             --sombra-suave: 0 10px 28px rgba(15, 23, 42, 0.08);
             --radio-card: 18px;
+            --ancho-app: 1100px;
+        }
+
+        /* ============================================================
+           ESTABILIDAD GENERAL
+           Mantiene la página siempre con el mismo ancho visual.
+           ============================================================ */
+
+        html {
+            overflow-y: scroll !important;
+            overflow-x: hidden !important;
+            scrollbar-gutter: stable both-edges !important;
+            width: 100% !important;
+        }
+
+        body {
+            overflow-x: hidden !important;
+            width: 100% !important;
+            margin: 0 !important;
         }
 
         html, body, [class*="css"] {
@@ -56,15 +69,79 @@ st.markdown(
         }
 
         .stApp {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
             background: radial-gradient(circle at top left, #EEF4FF 0, #F8FAFC 340px, #F8FAFC 100%) !important;
             color: var(--texto-principal) !important;
         }
 
-        .block-container {
-            max-width: 1120px !important;
+        [data-testid="stAppViewContainer"] {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+
+        [data-testid="stMain"] {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+
+        /* Contenedor principal: queda siempre en el ancho amplio */
+        .block-container,
+        [data-testid="stMainBlockContainer"] {
+            width: var(--ancho-app) !important;
+            max-width: var(--ancho-app) !important;
+            min-width: var(--ancho-app) !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
             padding-top: 1.2rem !important;
             padding-bottom: 3rem !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            box-sizing: border-box !important;
         }
+
+        /* En pantallas menores, mantiene margen fijo sin deformarse */
+        @media (max-width: 1240px) {
+            .block-container,
+            [data-testid="stMainBlockContainer"] {
+                width: calc(100vw - 48px) !important;
+                max-width: calc(100vw - 48px) !important;
+                min-width: calc(100vw - 48px) !important;
+                margin-left: 24px !important;
+                margin-right: 24px !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                box-sizing: border-box !important;
+            }
+        }
+
+        /* Evita microcambios de ancho en formularios, inputs y columnas */
+        div[data-testid="stForm"],
+        div[data-testid="stForm"] > div,
+        div[data-testid="stVerticalBlock"],
+        div[data-testid="stHorizontalBlock"],
+        div[data-testid="column"],
+        div[data-baseweb="select"],
+        div[data-baseweb="input"],
+        div[data-baseweb="textarea"],
+        div[data-testid="stSelectbox"],
+        div[data-testid="stTextInput"],
+        div[data-testid="stNumberInput"] {
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        /* Quita animaciones que hacen parecer que la página se estira */
+        * {
+            transition-property: color, background-color, border-color, box-shadow !important;
+        }
+
+        /* ============================================================
+           TÍTULOS Y HEADER
+           ============================================================ */
 
         .infosabana-title {
             color: var(--azul-sabana) !important;
@@ -98,6 +175,8 @@ st.markdown(
             border: 1px solid var(--azul-borde);
             border-radius: 24px;
             box-shadow: var(--sombra-suave);
+            box-sizing: border-box;
+            width: 100%;
         }
 
         .infosabana-logo {
@@ -122,6 +201,10 @@ st.markdown(
             max-width: 620px;
         }
 
+        /* ============================================================
+           CARDS Y SECCIONES
+           ============================================================ */
+
         .info-card {
             background: rgba(255, 255, 255, 0.96);
             border: 1px solid var(--borde-suave);
@@ -129,6 +212,8 @@ st.markdown(
             box-shadow: var(--sombra-suave);
             padding: 22px 24px;
             margin: 18px 0;
+            box-sizing: border-box;
+            width: 100%;
         }
 
         .info-card-title {
@@ -162,12 +247,18 @@ st.markdown(
             margin-bottom: 10px;
         }
 
+        /* ============================================================
+           UPLOADER
+           ============================================================ */
+
         div[data-testid="stFileUploader"] {
             background: #FFFFFF;
             border: 1.5px dashed #B7C7E8;
             border-radius: 16px;
             padding: 12px 14px;
             box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+            box-sizing: border-box;
+            width: 100%;
         }
 
         div[data-testid="stFileUploader"] label {
@@ -187,14 +278,33 @@ st.markdown(
             font-weight: 700 !important;
         }
 
+        /* ============================================================
+           BOTONES
+           ============================================================ */
+
+        div.stButton > button[kind="primary"] {
+            background-color: var(--azul-sabana) !important;
+            border-color: var(--azul-sabana) !important;
+            color: white !important;
+            font-weight: 700 !important;
+            border-radius: 0.65rem !important;
+            min-height: 48px !important;
+        }
+
+        div.stButton > button[kind="primary"]:hover {
+            background-color: var(--azul-sabana-hover) !important;
+            border-color: var(--azul-sabana-hover) !important;
+            color: white !important;
+        }
+
         div.stDownloadButton {
             margin: 0 !important;
             padding: 0 !important;
         }
 
         div.stDownloadButton > button {
-            background-color: #002B7A !important;
-            border-color: #002B7A !important;
+            background-color: var(--azul-sabana) !important;
+            border-color: var(--azul-sabana) !important;
             color: white !important;
             font-weight: 600 !important;
             border-radius: 0.65rem !important;
@@ -207,8 +317,8 @@ st.markdown(
         }
 
         div.stDownloadButton > button:hover {
-            background-color: #001C64 !important;
-            border-color: #001C64 !important;
+            background-color: var(--azul-sabana-hover) !important;
+            border-color: var(--azul-sabana-hover) !important;
             color: white !important;
         }
 
@@ -218,6 +328,10 @@ st.markdown(
             font-size: 15px !important;
             line-height: 1.1 !important;
         }
+
+        /* ============================================================
+           MÉTRICAS, TABLAS Y ALERTAS
+           ============================================================ */
 
         div[data-testid="stMetric"] {
             background: #FFFFFF;
@@ -234,7 +348,6 @@ st.markdown(
             box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
         }
 
-
         .stAlert {
             border-radius: 14px !important;
         }
@@ -242,6 +355,10 @@ st.markdown(
         hr {
             margin: 1.6rem 0 !important;
         }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
 
         @media (max-width: 720px) {
             .infosabana-hero {
