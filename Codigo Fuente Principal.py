@@ -496,6 +496,21 @@ def formatear_valor(valor):
 
     return texto
 
+def formatear_componente_visible(valor):
+    """
+    Cambia códigos de componente a nombres más claros para mostrar al usuario.
+    No afecta la lógica interna de cálculo.
+    """
+    componente_norm = normalizar_texto(valor)
+
+    if componente_norm == "LAB":
+        return "LABORATORIO"
+
+    if componente_norm == "LEC":
+        return "CLASE"
+
+    return formatear_valor(valor)
+
 
 def parsear_periodo(valor):
     """
@@ -1355,7 +1370,8 @@ def dataframe_a_tabla_html_correo(df):
     # Encabezados
     html_tabla += "<thead><tr>"
     for col in columnas:
-        html_tabla += f'<th style="{estilo_th}">{html.escape(str(col).upper())}</th>'
+        nombre_columna = "Departamento" if col == "Descripción" else col
+        html_tabla += f'<th style="{estilo_th}">{html.escape(str(nombre_columna).upper())}</th>'
     html_tabla += "</tr></thead>"
 
     html_tabla += "<tbody>"
@@ -2658,14 +2674,22 @@ if buscar:
 
     tabla_mostrar = tabla_final[columnas_seleccionadas].copy()
 
+    # Mostrar componentes con nombres más claros para el usuario.
+    # LAB -> LABORATORIO
+    # LEC -> CLASE
+    if "Componente" in tabla_mostrar.columns:
+        tabla_mostrar["Componente"] = tabla_mostrar["Componente"].apply(
+            formatear_componente_visible
+        )
+
     st.subheader("Tabla de resultados")
 
     st.dataframe(
-      tabla_mostrar,
+        tabla_mostrar,
         use_container_width=True,
         hide_index=True
     )
-    
+        
 
     # Resumen útil para validar, no afecta la tabla final
     with st.expander("Resumen de procesamiento"):
